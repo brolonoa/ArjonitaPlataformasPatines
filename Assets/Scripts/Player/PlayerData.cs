@@ -13,4 +13,14 @@ public class PlayerData : ScriptableObject
     public float acceleration = 20f;
     public float maxSpeed = 15f;
     public float airControl = 0.7f;
+
+    public float groundFriction;
+    public float airFriction;
+
+    public float idleFriction = 20f;   // freno al soltar input
+    public float turnFriction = 10f;
+
+    [Header("Jump")]
+    public float gravityScale;
+
 }

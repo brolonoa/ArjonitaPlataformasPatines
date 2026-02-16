@@ -12,5 +12,14 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 821c23a683f63e940b92b17e573dd007, type: 3}
   m_Name: PlayerData
   m_EditorClassIdentifier: Assembly-CSharp::PlayerData
-  groundCheckOffset: {x: 0, y: -0.5, z: 0}
-  groundCheckDistance: 0.55
+  groundCheckOffset: {x: 0, y: -0.5}
+  groundCheckDistance: 0.7
+  moveSpeed: 10
+  acceleration: 12
+  maxSpeed: 15
+  airControl: 0.7
+  groundFriction: 0.1
+  airFriction: 0.2
+  idleFriction: 18
+  turnFriction: 12
+  gravityScale: 4
