@@ -12,6 +12,7 @@ public class BeatEventSystem : MonoBehaviour
         if (Instance == null)
         {
             Instance = this;
+            Debug.Log("BeatEventSystem inicializado");
         }
         else
         {
@@ -21,6 +22,7 @@ public class BeatEventSystem : MonoBehaviour
 
     public void TriggerBeat()
     {
+        Debug.Log("TriggerBeat llamado!");
         OnBeat?.Invoke();
     }
 }
