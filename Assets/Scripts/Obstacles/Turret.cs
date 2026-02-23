@@ -4,6 +4,7 @@ public class Turret : MonoBehaviour
 {
     [Header("Shooting")]
     [SerializeField] private GameObject _proyectil;
+    [SerializeField] private GameObject parryProjectil;
     [SerializeField] private Transform _puntoDisparo;
     [SerializeField] private float _intervalo = 1f;
     [SerializeField] private bool _dispararAlInicio = true;
@@ -12,6 +13,9 @@ public class Turret : MonoBehaviour
     [SerializeField] private bool _activarAlInicio = true;
 
     private bool _estaDisparando = false;
+
+    private int projectileIndex;
+    [SerializeField] private int parryProjectileIndex;
 
     void Start()
     {
@@ -38,13 +42,19 @@ public class Turret : MonoBehaviour
 
     void Disparar()
     {
-        if (_proyectil == null || _puntoDisparo == null)
-        {
-            Debug.LogWarning($"[{gameObject.name}] Falta asignar proyectil o punto de disparo!");
-            return;
-        }
+        projectileIndex++;
 
-        Instantiate(_proyectil, _puntoDisparo.position, _puntoDisparo.rotation);
+        if(projectileIndex == parryProjectileIndex)
+        {
+            projectileIndex = 0;
+            Instantiate(parryProjectil, _puntoDisparo.position, _puntoDisparo.rotation);
+           
+        }
+        else
+        {
+            Instantiate(_proyectil, _puntoDisparo.position, _puntoDisparo.rotation);
+        }
+            
     }
 
     private void OnDestroy()

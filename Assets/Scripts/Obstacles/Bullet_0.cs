@@ -24,8 +24,8 @@ public class Bullet_0 : MonoBehaviour
         Destroy(gameObject, _tiempoDeVida);
     }
 
-    private void OnTriggerEnter2D(Collider2D collision)
-    {
-        Destroy(gameObject);
-    }
+    //private void OnTriggerEnter2D(Collider2D collision)
+    //{
+    //    Destroy(gameObject);
+    //}
 }

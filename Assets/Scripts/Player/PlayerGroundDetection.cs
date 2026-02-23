@@ -1,67 +1,95 @@
-using UnityEngine;
+﻿using UnityEngine;
 
+[RequireComponent(typeof(Rigidbody2D))]
 public class PlayerGroundDetection : MonoBehaviour
 {
-   private PlayerController controller;
-   private PlayerData playerData;
+    private PlayerController controller;
+    private PlayerData playerData;
 
     public bool IsGrounded { get; private set; }
     public float LastGroundedTime { get; private set; }
-    private bool wasGrounded;
+
     public Vector2 GroundNormal { get; private set; }
     public float GroundAngle { get; private set; }
-    [SerializeField] LayerMask goroundLayer;
-    private void Start()
+
+    private bool wasGrounded;
+
+    [SerializeField] private LayerMask groundLayer;
+
+    private void Awake()
     {
         controller = GetComponent<PlayerController>();
         playerData = controller.playerData;
     }
 
-    void Update()
+    private void FixedUpdate()
     {
         CheckGround();
-        Debug.Log(IsGrounded);
     }
 
     private void CheckGround()
     {
         wasGrounded = IsGrounded;
 
-        Vector2 rayOrigin = (Vector2)transform.position + playerData.groundCheckOffset;
-        RaycastHit2D hit = Physics2D.Raycast(
-            rayOrigin,
-            Vector2.down,
-            playerData.groundCheckDistance,
-            goroundLayer
-        );
+        Vector2 origin = (Vector2)transform.position + playerData.groundCheckOffset;
 
-        IsGrounded = hit.collider != null;
+        RaycastHit2D hit = Physics2D.CircleCast(origin, playerData.groundCheckRadius, Vector2.down, playerData.groundCheckDistance, groundLayer);
 
-        if (IsGrounded)
+        if (hit.collider != null)
         {
-            LastGroundedTime = Time.time;
-            GroundNormal = hit.normal;
-            GroundAngle = Vector2.Angle(GroundNormal, Vector2.up);
+            Vector2 normal = hit.normal;
+            float angle = Vector2.Angle(normal, Vector2.up);
+
+            // 🔹 FILTRO DE ÁNGULO (evita que paredes cuenten como suelo)
+            if (angle <= playerData.maxGroundAngle)
+            {
+                IsGrounded = true;
+                GroundNormal = normal;
+                GroundAngle = angle;
+                LastGroundedTime = Time.time;
+            }
+            else
+            {
+                IsGrounded = false;
+            }
+        }
+        else
+        {
+            IsGrounded = false;
         }
 
+        // Eventos opcionales
         if (IsGrounded && !wasGrounded)
         {
-            // Land
+            OnLand();
+            Debug.Log("Suelo");
         }
         else if (!IsGrounded && wasGrounded)
         {
-            // Leave ground
+            OnLeaveGround();
+            Debug.Log("NoSuelo");
         }
     }
-    void OnDrawGizmos()
+
+    private void OnLand()
+    {
+        // Aquí puedes disparar animación o evento
+    }
+
+    private void OnLeaveGround()
+    {
+        // Aquí puedes iniciar lógica de caída
+    }
+
+    private void OnDrawGizmos()
     {
         if (playerData == null) return;
 
-        Vector2 rayOrigin = (Vector2)transform.position + playerData.groundCheckOffset;
+        Vector2 origin = (Vector2)transform.position + playerData.groundCheckOffset;
+
         Gizmos.color = IsGrounded ? Color.green : Color.red;
 
-        // Vector2.down en vez de Vector3.down
-        Gizmos.DrawRay(rayOrigin, Vector2.down * playerData.groundCheckDistance);
-        Gizmos.DrawWireSphere(rayOrigin, 0.1f);
+        Gizmos.DrawWireSphere(origin, playerData.groundCheckRadius);
+        Gizmos.DrawRay(origin, Vector2.down * playerData.groundCheckDistance);
     }
 }

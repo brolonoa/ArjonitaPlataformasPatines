@@ -1,97 +1,51 @@
 using UnityEngine;
-using UnityEngine.Events;
+using System;
 
 public class BeatManager : MonoBehaviour
 {
-    [SerializeField] private float _bpm = 120;
+    [SerializeField] private float _bpm = 120f;
     [SerializeField] private AudioSource _audioSource;
-    [SerializeField] private Intervals[] _intervals;
 
-    [Header("BPM Helper")]
-    [SerializeField] private bool _showBPMHelper = false;
-    [SerializeField] private KeyCode _tapKey = KeyCode.Space;
+    [Header("Subdivisiones")]
+    [SerializeField] private int _subdivisions = 1; // 1 = beat normal, 2 = corcheas, 4 = semicorcheas
 
-    private float _lastTapTime;
-    private float _averageBPM;
-    private int _tapCount;
+    public static event Action OnBeat;
+    public static event Action OnSubBeat;
+
+    private double _secondsPerBeat;
+    private double _nextBeatTime;
+    private double _nextSubBeatTime;
+    private double _secondsPerSubBeat;
 
     private void Start()
     {
-        Debug.Log($"BPM actual: {_bpm}");
-        if (_showBPMHelper)
+        _secondsPerBeat = 60.0 / _bpm;
+        _secondsPerSubBeat = _secondsPerBeat / _subdivisions;
+
+        if (_audioSource != null)
         {
-            Debug.Log($"Presiona {_tapKey} al ritmo de la música para calcular el BPM");
+            _audioSource.Play();
+            _nextBeatTime = AudioSettings.dspTime + _secondsPerBeat;
+            _nextSubBeatTime = AudioSettings.dspTime + _secondsPerSubBeat;
         }
     }
 
     private void Update()
     {
-        // BPM Helper - presiona espacio al ritmo
-        if (_showBPMHelper && Input.GetKeyDown(_tapKey))
+        double dspTime = AudioSettings.dspTime;
+
+        // Beat principal
+        if (dspTime >= _nextBeatTime)
         {
-            float currentTime = Time.time;
-
-            if (_lastTapTime > 0)
-            {
-                float timeDiff = currentTime - _lastTapTime;
-                float instantBPM = 60f / timeDiff;
-
-                _tapCount++;
-                _averageBPM = ((_averageBPM * (_tapCount - 1)) + instantBPM) / _tapCount;
-
-                Debug.Log($"Tap {_tapCount} - BPM instantáneo: {instantBPM:F1}, BPM promedio: {_averageBPM:F1}");
-
-                if (_tapCount >= 8)
-                {
-                    Debug.Log($"===== BPM CALCULADO: {Mathf.Round(_averageBPM)} =====");
-                }
-            }
-
-            _lastTapTime = currentTime;
+            OnBeat?.Invoke();
+            _nextBeatTime += _secondsPerBeat;
         }
 
-        // Resetear si pasa mucho tiempo
-        if (_showBPMHelper && Time.time - _lastTapTime > 3f)
+        // Subdivisiones
+        if (_subdivisions > 1 && dspTime >= _nextSubBeatTime)
         {
-            _tapCount = 0;
-            _averageBPM = 0;
-        }
-
-        // Sistema de beats normal
-        if (_audioSource == null || _audioSource.clip == null || _intervals == null)
-            return;
-
-        foreach (Intervals interval in _intervals)
-        {
-            float intervalLength = interval.GetIntervalLength(_bpm);
-            float sampledTime = (_audioSource.timeSamples / (_audioSource.clip.frequency * intervalLength));
-            interval.CheckForNewInterval(sampledTime);
-        }
-    }
-}
-
-[System.Serializable]
-public class Intervals
-{
-    [SerializeField] private float _steps = 1;
-    [SerializeField] private UnityEvent _trigger;
-    private int _lastInterval = -1;
-
-    public float GetSteps() => _steps;
-
-    public float GetIntervalLength(float bpm)
-    {
-        return 60f / (bpm * _steps);
-    }
-
-    public void CheckForNewInterval(float interval)
-    {
-        int currentInterval = Mathf.FloorToInt(interval);
-
-        if (currentInterval != _lastInterval)
-        {
-            _lastInterval = currentInterval;
-            _trigger.Invoke();
+            OnSubBeat?.Invoke();
+            _nextSubBeatTime += _secondsPerSubBeat;
         }
     }
 }
