@@ -1,44 +1,49 @@
 using UnityEngine;
 
-public class DronEnemy : MonoBehaviour
+public class DronEnemy : MonoBehaviour, IParryable
 {
-    [SerializeField] private Transform[] patrolPoints;
-    [SerializeField] private float speed = 3f;
-    [SerializeField] private float reachDistance = 0.1f;
-    [SerializeField] bool canPatrol;
+    
 
-    private int currentIndex = 0;
-    private int direction = 1; 
+    [SerializeField] private int maxHealth;
+    [SerializeField] private int currentHealth;
+    [SerializeField] private float deactivatedTime;
 
-    private void Update()
+    private BoxCollider2D boxCollider;
+    private SpriteRenderer spriteRenderer;
+
+    [SerializeField] private bool canBeParried;
+    public bool CanBeParried => canBeParried;
+    private void Start()
     {
-        if (canPatrol) Patrol();
+        currentHealth = maxHealth;
+        boxCollider = GetComponent<BoxCollider2D>();
+        spriteRenderer = GetComponentInChildren<SpriteRenderer>();
+        boxCollider.enabled = true;
+    }
+    
+
+    public void OnParry()
+    {
+        currentHealth--;
+        if (currentHealth <= 0)
+        {
+            Death();
+        }
+        else
+        {
+            //cambiar el color 
+        }
     }
 
-    private void Patrol()
+    private void Death()
     {
-        if (patrolPoints.Length == 0) return;
-
-        Transform targetPoint = patrolPoints[currentIndex];
-
-
-        transform.position = Vector3.MoveTowards(transform.position, targetPoint.position, speed * Time.deltaTime);
-
-
-        if (Vector3.Distance(transform.position, targetPoint.position) <= reachDistance)
-        {
-            currentIndex += direction;
-
-            if (currentIndex >= patrolPoints.Length)
-            {
-                direction = -1;
-                currentIndex = patrolPoints.Length - 2;
-            }
-            else if (currentIndex < 0)
-            {
-                direction = 1;
-                currentIndex = 1;
-            }
-        }
+        boxCollider.enabled = false;
+        spriteRenderer.enabled = false;
+        Invoke("Activate", deactivatedTime);
+    }
+    private void Activate()
+    {
+        boxCollider.enabled = true;
+        spriteRenderer.enabled = true;
     }
 }

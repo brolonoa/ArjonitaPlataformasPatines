@@ -10,287 +10,282 @@ public class PlayerController : MonoBehaviour
     private Rigidbody2D rb;
     private float moveInput;
 
-    float targetSpeed;
-    float speedDifference;
-    float accelerationRate;
-
     [SerializeField] Transform visual;
 
-    [SerializeField] float rotationSmooth = 10f;
-    [SerializeField] float maxSlopeRotation = 45f;
+    // NUEVO: Componentes para el deslizamiento
+    private CapsuleCollider2D playerCollider;
+    private Vector2 originalColliderSize;
+    private Vector2 originalColliderOffset;
 
-    float targetRotation;
-    float currentRotation;
-    float jumpBufferCounter;
-    float coyoteCounter;
-    bool jumpPressed;
-    float currentSoftCap;
-    bool isCrouching;
-    public float CurrentSpeed => Mathf.Abs(rb.linearVelocity.x);
-    public bool IsCrouching => isCrouching;
+    // Timers
+    private float jumpBufferCounter;
+    private float coyoteCounter;
 
+    // Slope sticking
+    private bool isOnSlope;
+    private Vector2 slopeNormal;
+    private Vector2 slopeDirection;
 
-    public float CurrentMaxSpeed => currentSoftCap;
+    // Control de salto
+    private bool isJumping;
+    private float jumpStickDisableTime = 0.15f;
+    private float jumpEndTime;
+
+    // NUEVO: Control de deslizamiento
+    private bool isSliding;
+    private bool slideInputHeld;
+    private float slideEndTime;
+    private float slideCooldownTime;
+    [SerializeField] private float slideDuration = 0.5f; // Duración máxima del deslizamiento
+    [SerializeField] private float slideCooldown = 0.3f; // Cooldown entre deslizamientos
+
+    // Para depuración
+    private Vector2 debugForces;
+
+    [SerializeField] public Animator playerAnim;
+
     private void Awake()
     {
         rb = GetComponent<Rigidbody2D>();
         groundDetection = GetComponent<PlayerGroundDetection>();
+        playerCollider = GetComponent<CapsuleCollider2D>();
 
+        // Guardar tamaño original del collider
+        if (playerCollider != null)
+        {
+            originalColliderSize = playerCollider.size;
+            originalColliderOffset = playerCollider.offset;
+        }
 
         rb.gravityScale = 0f;
         rb.freezeRotation = true;
-        rb.collisionDetectionMode = CollisionDetectionMode2D.Continuous; 
-        rb.interpolation = RigidbodyInterpolation2D.Interpolate; 
-
-
+        rb.collisionDetectionMode = CollisionDetectionMode2D.Continuous;
+        rb.interpolation = RigidbodyInterpolation2D.Interpolate;
     }
-    private bool wasCrouching;
-    private bool hasUsedCrouchBoost;
 
     private void Update()
     {
-        // Detectar inicio de crouch
-        wasCrouching = isCrouching;
-        isCrouching = Input.GetKey(KeyCode.LeftShift);
+        moveInput = Input.GetAxisRaw("Horizontal");
 
-        // Boost al empezar a agacharse
-        if (isCrouching && !wasCrouching && groundDetection.IsGrounded)
-        {
-            float boostDirection = moveInput != 0 ? Mathf.Sign(moveInput) : Mathf.Sign(rb.linearVelocity.x);
-            if (boostDirection == 0) boostDirection = 1f;
-
-            rb.AddForce(Vector2.right * boostDirection * playerData.crouchBoostForce, ForceMode2D.Impulse);
-            hasUsedCrouchBoost = true;
-        }
-
-        if (!isCrouching && wasCrouching)
-        {
-            hasUsedCrouchBoost = false;
-        }
-
-        moveInput = Input.GetAxis("Horizontal");
-
-        if (Input.GetKeyDown(KeyCode.Z)) 
+        // Input de salto
+        if (Input.GetKeyDown(KeyCode.Z))
         {
             jumpBufferCounter = playerData.jumpBufferTime;
         }
 
-        if (Input.GetKeyUp(KeyCode.Z))
+        if (Input.GetKeyUp(KeyCode.Z) && rb.linearVelocity.y > 0)
         {
-            if (rb.linearVelocity.y > 0)
+            rb.linearVelocity = new Vector2(
+                rb.linearVelocity.x,
+                rb.linearVelocity.y * playerData.jumpCutMultiplier
+            );
+        }
+
+        // NUEVO: Input de deslizamiento
+        slideInputHeld = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
+
+        if (Input.GetKeyDown(KeyCode.LeftShift) || Input.GetKeyDown(KeyCode.RightShift))
+        {
+            TryStartSlide();
+        }
+
+        if (Input.GetKeyUp(KeyCode.LeftShift) || Input.GetKeyUp(KeyCode.RightShift))
+        {
+            if (isSliding)
             {
-                rb.linearVelocity = new Vector2(
-                    rb.linearVelocity.x,
-                    rb.linearVelocity.y * playerData.jumpCutMultiplier
-                );
+                EndSlide();
             }
         }
-    }
-    private void FixedUpdate()
-    {
-        ApplyMovement();
-        UpdateSoftCap();
-        ApplySoftCap();
-        ApplyFriction();
-        HandleSlopeMovement();
-        HandleJump();
-        ApplyGravity();
-    }
-    void LateUpdate()
-    {
-        targetRotation = GetSlopeRotation();
 
-        currentRotation = Mathf.Lerp(
-            currentRotation,
-            targetRotation,
-            rotationSmooth * Time.deltaTime
-        );
+        // Actualizar timers
+        jumpBufferCounter -= Time.deltaTime;
 
-        visual.localRotation = Quaternion.Euler(0f, 0f, -currentRotation);
-    }
-    void ApplyMovement()
-    {
-        if (Mathf.Approximately(moveInput, 0f))
-            return;
-
-        targetSpeed = moveInput * playerData.maxSpeed;
-        speedDifference = targetSpeed - rb.linearVelocity.x;
-
-        accelerationRate = groundDetection.IsGrounded
-            ? playerData.acceleration
-            : playerData.acceleration * playerData.airControl;
-
-        // Reducir aceleración si está agachado
-        if (isCrouching && groundDetection.IsGrounded)
+        if (slideCooldownTime > 0)
         {
-            accelerationRate *= playerData.crouchAccelerationMultiplier;
+            slideCooldownTime -= Time.deltaTime;
         }
 
-        float movement = speedDifference * accelerationRate;
+        if (isSliding && Time.time > slideEndTime)
+        {
+            EndSlide();
+        }
+
+        if (isJumping && Time.time > jumpEndTime)
+        {
+            isJumping = false;
+        }
+    }
+
+    private void FixedUpdate()
+    {
+        UpdateSlopeState();
+
+        if (groundDetection.IsGrounded)
+        {
+            coyoteCounter = playerData.coyoteTime;
+        }
+        else
+        {
+            coyoteCounter -= Time.fixedDeltaTime;
+        }
+
+        ApplyMovement();
+        HandleJump();
+        ApplyAdaptiveGravity();
+    }
+
+    private void UpdateSlopeState()
+    {
+        if (groundDetection.IsGrounded && groundDetection.GroundAngle > 5f)
+        {
+            isOnSlope = true;
+            slopeNormal = groundDetection.GroundNormal;
+            slopeDirection = new Vector2(slopeNormal.y, -slopeNormal.x).normalized;
+
+            if (slopeDirection.x < 0)
+                slopeDirection = -slopeDirection;
+        }
+        else
+        {
+            isOnSlope = false;
+        }
+    }
+
+    private void ApplyMovement()
+    {
+        float targetSpeed = moveInput * playerData.maxSpeed;
+
+        // NUEVO: Aumentar velocidad si está deslizando
+        if (isSliding)
+        {
+            targetSpeed *= playerData.slideSpeedMultiplier; // Necesitarás añadir este campo a PlayerData
+        }
+
+        float speedDifference = targetSpeed - rb.linearVelocity.x;
+
+        // NUEVO: Mayor aceleración en pendientes durante deslizamiento
+        float slopeBonus = (isOnSlope && isSliding) ? playerData.slideSlopeBoost : 1f;
+
+        float currentAccel = groundDetection.IsGrounded
+            ? playerData.acceleration * slopeBonus
+            : playerData.acceleration * playerData.airControl;
+
+        float movement = speedDifference * currentAccel;
         rb.AddForce(Vector2.right * movement, ForceMode2D.Force);
     }
 
-    void ApplyFriction()
+    private void ApplyAdaptiveGravity()
     {
-        if (!groundDetection.IsGrounded)
-            return;
+        rb.AddForce(Physics2D.gravity * playerData.gravityScale, ForceMode2D.Force);
 
-        float velocityX = rb.linearVelocity.x;
-        float speed = Mathf.Abs(velocityX);
-
-        // Si excede soft cap, ApplySoftCap se encarga
-        if (speed > currentSoftCap)
-            return;
-
-        if (Mathf.Abs(moveInput) < 0.1f)
+        if (isOnSlope && !isJumping)
         {
-            velocityX = Mathf.MoveTowards(
-                velocityX,
-                0f,
-                playerData.idleFriction * Time.fixedDeltaTime
-            );
+            Vector2 stickForce = -slopeNormal * playerData.slopeStickForce;
+            rb.AddForce(stickForce, ForceMode2D.Force);
         }
-        else if (Mathf.Sign(moveInput) != Mathf.Sign(velocityX))
+    }
+
+    private void HandleJump()
+    {
+        // NUEVO: No saltar si está deslizando
+        if (jumpBufferCounter > 0 && coyoteCounter > 0 && !isSliding)
         {
-            velocityX = Mathf.MoveTowards(
-                velocityX,
-                0f,
-                playerData.turnFriction * Time.fixedDeltaTime
-            );
-        }
-
-        rb.linearVelocity = new Vector2(velocityX, rb.linearVelocity.y);
-    }
-
-    float GetSlopeRotation()
-    {
-        if (!groundDetection.IsGrounded)
-            return 0f;
-
-        if (groundDetection.GroundAngle < 5f)
-            return 0f;
-
-        Vector2 normal = groundDetection.GroundNormal;
-
-        // Convertimos normal → ángulo visual
-        float angle = Mathf.Atan2(normal.x, normal.y) * Mathf.Rad2Deg;
-
-        return Mathf.Clamp(angle, -maxSlopeRotation, maxSlopeRotation);
-    }
-    void HandleSlopeMovement()
-    {
-        if (!groundDetection.IsGrounded)
-            return;
-
-        if (groundDetection.GroundAngle < 5f)
-            return;
-
-        // NO aplicar si está saltando
-        if (rb.linearVelocity.y > 0.1f)
-            return;
-
-        Vector2 normal = groundDetection.GroundNormal;
-        Vector2 tangent = new Vector2(normal.y, -normal.x).normalized;
-        float speedAlongSlope = Vector2.Dot(rb.linearVelocity, tangent);
-
-        Vector2 gravity = Physics2D.gravity * playerData.gravityScale;
-        float gravityAlongSlope = Vector2.Dot(gravity, tangent);
-
-        speedAlongSlope += gravityAlongSlope * Time.fixedDeltaTime;
-
-        rb.linearVelocity = tangent * speedAlongSlope;
-    }
-
-    void ApplyGravity()
-    {
-        // Solo skip si está en rampa Y tocando suelo Y no saltando
-        if (groundDetection.IsGrounded
-            && groundDetection.GroundAngle > 5f
-            && rb.linearVelocity.y <= 0.1f)
-            return;
-
-        Vector2 gravity = Physics2D.gravity * playerData.gravityScale;
-        rb.AddForce(gravity, ForceMode2D.Force);
-    }
-    void HandleJump()
-    {
-        if (groundDetection.IsGrounded)
-            coyoteCounter = playerData.coyoteTime;
-        else
-            coyoteCounter -= Time.fixedDeltaTime;
-
-        jumpBufferCounter -= Time.fixedDeltaTime;
-
-        if (jumpBufferCounter > 0 && coyoteCounter > 0)
-        {
-            Jump();
+            PerformJump();
             jumpBufferCounter = 0;
+            coyoteCounter = 0;
         }
     }
-    void Jump()
+
+    private void PerformJump()
     {
-        Vector2 normal = groundDetection.IsGrounded
-            ? groundDetection.GroundNormal
-            : Vector2.up;
+        isJumping = true;
+        jumpEndTime = Time.time + jumpStickDisableTime;
 
-        // Saltar en dirección de la normal del suelo
-        rb.linearVelocity = new Vector2(rb.linearVelocity.x, 0f);
-
-        rb.AddForce(normal * playerData.jumpForce, ForceMode2D.Impulse);
+        rb.linearVelocity = new Vector2(0f, 0f);
+        rb.AddForce(Vector2.up * playerData.jumpForce, ForceMode2D.Impulse);
     }
-    bool IsOnDownSlope()
+
+    // NUEVO: Métodos para deslizamiento
+    private void TryStartSlide()
     {
-        if (!groundDetection.IsGrounded)
-            return false;
-
-        if (groundDetection.GroundAngle < 5f)
-            return false;
-
-        Vector2 normal = groundDetection.GroundNormal;
-        Vector2 tangent = new Vector2(normal.y, -normal.x).normalized;
-
-        float gravityAlongSlope = Vector2.Dot(
-            Physics2D.gravity,
-            tangent
-        );
-
-        return gravityAlongSlope > 0;
-    }
-    void UpdateSoftCap()
-    {
-        currentSoftCap = playerData.baseMaxSpeed;
-
-        bool onDownSlope = IsOnDownSlope();
-
-        if (onDownSlope)
+        // Solo puede deslizar si está en el suelo y no está ya deslizando
+        if (groundDetection.IsGrounded && !isSliding && slideCooldownTime <= 0)
         {
-            currentSoftCap += playerData.slopeSpeedBonus;
-
-            if (isCrouching)
-                currentSoftCap += playerData.crouchSlopeBonus;
-        }
-        else
-        {
-            if (isCrouching)
-                currentSoftCap += playerData.crouchFlatBonus; // >= 3
+            StartSlide();
         }
     }
-    void ApplySoftCap()
+
+    private void StartSlide()
     {
-        float speed = rb.linearVelocity.magnitude;
+        isSliding = true;
+        slideEndTime = Time.time + slideDuration;
 
-        if (speed <= currentSoftCap)
-            return;
+        // Reducir collider a la mitad hacia abajo
+        if (playerCollider != null)
+        {
+            playerCollider.size = new Vector2(
+                originalColliderSize.x,
+                originalColliderSize.y * 0.1f
+            );
 
-        float decay = playerData.momentumDecayRate * Time.fixedDeltaTime;
+            playerCollider.offset = new Vector2(
+                originalColliderOffset.x,
+                originalColliderOffset.y - (originalColliderSize.y * 0.25f)
+            );
+        }
 
-        float newSpeed = Mathf.MoveTowards(
-            speed,
-            currentSoftCap,
-            decay
-        );
-
-        rb.linearVelocity = rb.linearVelocity.normalized * newSpeed;
+        // Efecto visual (opcional)
+        if (playerAnim != null)
+        {
+            playerAnim.SetBool("isSliding", true);
+        }
     }
-    
+
+    private void EndSlide()
+    {
+        isSliding = false;
+        slideCooldownTime = slideCooldown;
+
+        // Restaurar collider original
+        if (playerCollider != null)
+        {
+            playerCollider.size = originalColliderSize;
+            playerCollider.offset = originalColliderOffset;
+        }
+
+        // Restaurar animación
+        if (playerAnim != null)
+        {
+            playerAnim.SetBool("isSliding", false);
+        }
+    }
+
+    private void OnDrawGizmos()
+    {
+        if (!Application.isPlaying) return;
+
+        if (isOnSlope)
+        {
+            Gizmos.color = Color.green;
+            Gizmos.DrawRay(transform.position, slopeNormal);
+            Gizmos.color = Color.red;
+            Gizmos.DrawRay(transform.position, slopeDirection);
+        }
+
+        if (isJumping)
+        {
+            Gizmos.color = Color.cyan;
+            Gizmos.DrawWireSphere(transform.position, 0.4f);
+        }
+
+        // NUEVO: Visualizar estado de deslizamiento
+        if (isSliding)
+        {
+            Gizmos.color = Color.magenta;
+            Gizmos.DrawWireCube(transform.position, playerCollider != null ? playerCollider.size : Vector2.one);
+        }
+
+        Gizmos.color = Color.yellow;
+        Gizmos.DrawRay(transform.position, debugForces * 0.05f);
+    }
 }

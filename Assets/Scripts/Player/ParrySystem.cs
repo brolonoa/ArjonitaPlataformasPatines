@@ -1,10 +1,6 @@
 using UnityEngine;
 using System.Collections;
 
-/// <summary>
-/// Sistema de Parry aéreo.
-/// Permite "saltar" de nuevo en el aire al hacer parry exitoso.
-/// </summary>
 public class ParrySystem : MonoBehaviour
 {
     [Header("References")]
@@ -14,35 +10,32 @@ public class ParrySystem : MonoBehaviour
     private Rigidbody2D rb;
 
     [Header("Parry Settings")]
-    [Tooltip("Ventana de tiempo en la que el parry está activo")]
     [SerializeField] private float parryWindow = 0.2f;
-
-    [Tooltip("Cooldown entre parries")]
     [SerializeField] private float parryCooldown = 0.5f;
-
-    [Header("Visual Feedback")]
-    [SerializeField] private GameObject parryVFX; // Efecto visual opcional
-
-    // === ESTADO ===
-    private bool isParryActive;
-    private float parryTimer;
-    private float cooldownTimer;
-    private bool canParry = true;
-
-    // === EVENTOS ===
-    public event System.Action OnParrySuccess;
-    public event System.Action OnParryFailed;
+    [SerializeField] private float extraUpwardBoost = 2f;
 
     [Header("Visual Feedback")]
     [SerializeField] private SpriteRenderer playerSprite;
     [SerializeField] private Color parryColor = Color.yellow;
 
+    
+
+    public bool isParryActive;
+    private float parryTimer;
+    private float cooldownTimer;
+    private bool canParry = true;
+
+    public event System.Action OnParrySuccess;
+    public event System.Action OnParryFailed;
+
+    private Animator playerAnim;
     void Awake()
     {
         controller = GetComponent<PlayerController>();
         groundDetection = GetComponent<PlayerGroundDetection>();
         playerData = controller.playerData;
         rb = GetComponent<Rigidbody2D>();
+        playerAnim = controller.playerAnim;
     }
 
     void Update()
@@ -53,7 +46,6 @@ public class ParrySystem : MonoBehaviour
 
     void HandleParryInput()
     {
-        // Input de parry (botón izquierdo del mouse o botón de gamepad)
         if (Input.GetKeyDown(KeyCode.C))
         {
             TryParry();
@@ -62,7 +54,6 @@ public class ParrySystem : MonoBehaviour
 
     void UpdateTimers()
     {
-        // Countdown de ventana de parry
         if (isParryActive)
         {
             parryTimer -= Time.deltaTime;
@@ -74,57 +65,41 @@ public class ParrySystem : MonoBehaviour
             }
         }
 
-        // Countdown de cooldown
         if (!canParry)
         {
             cooldownTimer -= Time.deltaTime;
 
             if (cooldownTimer <= 0)
-            {
                 canParry = true;
-            }
         }
     }
 
     void TryParry()
     {
-        // Solo se puede hacer parry en el aire
         if (groundDetection.IsGrounded)
-        {
-            Debug.Log("Parry: En el suelo, no se puede hacer parry aéreo");
             return;
-        }
 
-        // Verificar cooldown
         if (!canParry)
-        {
-            Debug.Log("Parry: En cooldown");
             return;
-        }
 
-        // Activar ventana de parry
         ActivateParry();
     }
 
     void ActivateParry()
     {
+        playerAnim.SetTrigger("performParry");
         isParryActive = true;
         parryTimer = parryWindow;
 
-        Debug.Log("Parry activado! Ventana de " + parryWindow + "s");
-
         if (playerSprite != null)
-        {
             StartCoroutine(FlashSprite());
-        }
     }
 
     public void OnParryHit()
     {
         if (!isParryActive)
             return;
-
-        // ¡Parry exitoso!
+        playerAnim.SetTrigger("succesParry");
         PerformParryBoost();
     }
 
@@ -134,63 +109,55 @@ public class ParrySystem : MonoBehaviour
         canParry = false;
         cooldownTimer = parryCooldown;
 
-        // Calcular dirección del boost
-        Vector2 boostDirection = CalculateBoostDirection();
-
-        // Resetear velocidad Y (como un salto)
-        rb.linearVelocity = new Vector2(rb.linearVelocity.x, 0f);
-
-        // Aplicar boost
-        rb.AddForce(boostDirection * playerData.parryBoostForce, ForceMode2D.Impulse);
-
-        // Disparar evento
-        OnParrySuccess?.Invoke();
-
-        Debug.Log($"¡PARRY EXITOSO! Boost aplicado en dirección {boostDirection}");
-    }
-
-    Vector2 CalculateBoostDirection()
-    {
-        // Dirección basada en input del jugador
         float horizontalInput = Input.GetAxis("Horizontal");
 
-        // Si no hay input, usar dirección de facing actual
         if (Mathf.Approximately(horizontalInput, 0f))
         {
             horizontalInput = Mathf.Sign(rb.linearVelocity.x);
-
-            // Si tampoco hay velocidad, usar dirección hacia adelante por defecto
             if (horizontalInput == 0)
                 horizontalInput = 1f;
         }
 
-        // Vector normalizado con componente vertical fija
-        Vector2 direction = new Vector2(horizontalInput, 1f).normalized;
+        rb.linearVelocity = new Vector2(rb.linearVelocity.x, 0f);
 
+        Vector2 boost = new Vector2(
+            horizontalInput * playerData.parryHorizontalForce,
+            playerData.parryVerticalForce + extraUpwardBoost
+        );
+
+        rb.AddForce(boost, ForceMode2D.Impulse);
+
+        OnParrySuccess?.Invoke();
+    }
+    Vector2 CalculateBoostDirection()
+    {
+        float horizontalInput = Input.GetAxis("Horizontal");
+
+        if (Mathf.Approximately(horizontalInput, 0f))
+        {
+            horizontalInput = Mathf.Sign(rb.linearVelocity.x);
+            if (horizontalInput == 0)
+                horizontalInput = 1f;
+        }
+
+        Vector2 direction = new Vector2(horizontalInput, 1f + extraUpwardBoost).normalized;
         return direction;
     }
 
-    /// <summary>
-    /// Llamado por OnTriggerEnter2D del jugador cuando detecta proyectil.
-    /// </summary>
     void OnTriggerStay2D(Collider2D other)
     {
-        // Solo reaccionar durante ventana de parry
         if (!isParryActive)
             return;
 
-        // Verificar si es un proyectil o enemigo parryable
-        if (other.CompareTag("Projectile") || other.CompareTag("ParryableEnemy"))
-        {
-            OnParryHit();
+        IParryable parryable = other.GetComponent<IParryable>();
 
-            // Destruir proyectil (opcional)
-            if (other.CompareTag("Projectile"))
-            {
-                Destroy(other.gameObject);
-            }
+        if (parryable != null && parryable.CanBeParried)
+        {
+            parryable.OnParry();
+            OnParryHit();
         }
     }
+
     IEnumerator FlashSprite()
     {
         Color originalColor = playerSprite.color;
@@ -201,49 +168,11 @@ public class ParrySystem : MonoBehaviour
         playerSprite.color = originalColor;
     }
 
-    #region PUBLIC API
-
-    /// <summary>
-    /// Forzar parry exitoso desde código externo.
-    /// Útil para testing o eventos especiales.
-    /// </summary>
     public void ForceParryBoost()
     {
         PerformParryBoost();
     }
 
-    /// <summary>
-    /// ¿Está la ventana de parry activa?
-    /// </summary>
     public bool IsParryActive => isParryActive;
-
-    /// <summary>
-    /// ¿Puede hacer parry? (no en cooldown)
-    /// </summary>
     public bool CanParry => canParry && !groundDetection.IsGrounded;
-
-    #endregion
-
-    #region DEBUG
-
-    void OnDrawGizmos()
-    {
-        if (!Application.isPlaying)
-            return;
-
-        // Dibujar estado de parry
-        if (isParryActive)
-        {
-            Gizmos.color = Color.yellow;
-            Gizmos.DrawWireSphere(transform.position, 1f);
-        }
-        else if (!canParry)
-        {
-            Gizmos.color = Color.red;
-            Gizmos.DrawWireSphere(transform.position, 0.5f);
-        }
-    }
-
-
-    #endregion
 }

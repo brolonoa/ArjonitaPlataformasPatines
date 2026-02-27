@@ -1,6 +1,6 @@
 using UnityEngine;
 
-public interface IEInteractible 
+public interface IEInteractable 
 {
 
     public void OnInteract();

@@ -1,6 +1,7 @@
+using System.Collections;
 using UnityEngine;
 
-public class Turret : MonoBehaviour
+public class Turret : MonoBehaviour, IParryable
 {
     [Header("Shooting")]
     [SerializeField] private GameObject _proyectil;
@@ -16,15 +17,24 @@ public class Turret : MonoBehaviour
 
     private int projectileIndex;
     [SerializeField] private int parryProjectileIndex;
+    [SerializeField] float stunedTime;
+    private bool isStuned;
 
+    [SerializeField] private bool canBeParried;
+    public bool CanBeParried => canBeParried;
+
+    [SerializeField] Animator anim;
     void Start()
     {
         if (_activarAlInicio)
         {
             IniciarDisparo();
         }
+        canBeParried = true;
+
     }
 
+   
     public void IniciarDisparo()
     {
         if (_estaDisparando) return;
@@ -42,6 +52,7 @@ public class Turret : MonoBehaviour
 
     void Disparar()
     {
+        anim.SetTrigger("shoot");
         projectileIndex++;
 
         if(projectileIndex == parryProjectileIndex)
@@ -60,5 +71,26 @@ public class Turret : MonoBehaviour
     private void OnDestroy()
     {
         CancelInvoke();
+    }
+
+    public void OnParry()
+    {
+        if (!isStuned)
+        {
+            StartCoroutine(StunedTime());
+        }
+    }
+    IEnumerator StunedTime()
+    {
+        anim.SetTrigger("stuned");
+        DetenerDisparo();
+        isStuned = true;
+        canBeParried = false;
+        yield return new WaitForSeconds(stunedTime);
+        anim.SetTrigger("recoberStun");
+        yield return new WaitForSeconds(1.1f);
+        isStuned = false;
+        canBeParried = true;
+        IniciarDisparo();
     }
 }
