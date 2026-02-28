@@ -16,7 +16,7 @@ MonoBehaviour:
   turnFriction: 45
   gravityScale: 5.5
   parryHorizontalForce: 20
-  parryVerticalForce: 25
+  parryVerticalForce: 26
   slopeStickForce: 900
   slopeDownSpeedMultiplier: 0.2
   slopeUpSpeedMultiplier: 0.1
