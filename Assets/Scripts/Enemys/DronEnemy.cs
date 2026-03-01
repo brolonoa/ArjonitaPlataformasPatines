@@ -43,7 +43,9 @@ public class DronEnemy : MonoBehaviour, IParryable
     }
     private void Activate()
     {
+        currentHealth = maxHealth;
         boxCollider.enabled = true;
         spriteRenderer.enabled = true;
+        
     }
 }

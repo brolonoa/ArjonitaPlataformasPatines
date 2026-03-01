@@ -11,27 +11,38 @@ public class BasicEnemy : MonoBehaviour
     [Header("Vision")]
     [SerializeField] private float visionRange = 5f;
     [SerializeField] private LayerMask playerLayer;
+    [SerializeField] private LayerMask obstacleLayer;
+
+    [Header("Attack")]
+    [SerializeField] private float aimTime = 1f;
+    [SerializeField] private GameObject projectilePrefab;
+    [SerializeField] private Transform firePoint;
 
     [Header("Visual")]
     [SerializeField] private Transform visual;
+    [SerializeField] private LineRenderer lineRenderer;
 
     private int currentIndex = 0;
     private float waitCounter;
     private bool waiting;
-    private bool attacking;
 
     private Transform player;
+    private float aimCounter;
+    private bool aiming;
 
     void Update()
     {
         CheckForPlayer();
 
-        if (attacking)
-            Attack();
+        if (player != null)
+            HandleAttack();
         else
             Patrol();
     }
 
+    // =========================
+    // PATROL (SOLO EJE X)
+    // =========================
     void Patrol()
     {
         if (patrolPoints.Length == 0) return;
@@ -43,60 +54,102 @@ public class BasicEnemy : MonoBehaviour
             {
                 waiting = false;
                 currentIndex++;
-
                 if (currentIndex >= patrolPoints.Length)
-                    currentIndex = 0; // 🔁 bucle infinito
+                    currentIndex = 0;
             }
             return;
         }
 
         Transform targetPoint = patrolPoints[currentIndex];
 
+        Vector3 targetPos = new Vector3(
+            targetPoint.position.x,
+            transform.position.y, // 🔒 bloqueamos Y
+            transform.position.z
+        );
+
         transform.position = Vector3.MoveTowards(
             transform.position,
-            targetPoint.position,
+            targetPos,
             speed * Time.deltaTime
         );
 
-        float dirX = targetPoint.position.x - transform.position.x;
+        float dirX = targetPos.x - transform.position.x;
         Flip(dirX);
 
-        if (Vector3.Distance(transform.position, targetPoint.position) <= reachDistance)
+        if (Mathf.Abs(transform.position.x - targetPos.x) <= reachDistance)
         {
             waiting = true;
             waitCounter = waitTime;
         }
     }
 
-    void Attack()
-    {
-        if (player == null) return;
-
-        transform.position = Vector3.MoveTowards(
-            transform.position,
-            player.position,
-            speed * 1.5f * Time.deltaTime
-        );
-
-        float dirX = player.position.x - transform.position.x;
-        Flip(dirX);
-    }
-
+    // =========================
+    // DETECCIÓN
+    // =========================
     void CheckForPlayer()
     {
         Collider2D hit = Physics2D.OverlapCircle(transform.position, visionRange, playerLayer);
 
         if (hit != null)
-        {
             player = hit.transform;
-            attacking = true;
-        }
         else
         {
-            attacking = false;
+            player = null;
+            aiming = false;
+            lineRenderer.enabled = false;
         }
     }
 
+    // =========================
+    // APUNTAR + DISPARAR
+    // =========================
+    void HandleAttack()
+    {
+        Vector2 direction = (player.position - firePoint.position).normalized;
+
+        RaycastHit2D hit = Physics2D.Raycast(
+            firePoint.position,
+            direction,
+            visionRange,
+            playerLayer | obstacleLayer
+        );
+
+        if (hit.collider != null)
+        {
+            lineRenderer.enabled = true;
+            lineRenderer.SetPosition(0, firePoint.position);
+            lineRenderer.SetPosition(1, hit.point);
+
+            if (hit.collider.CompareTag("Player"))
+            {
+                aiming = true;
+                aimCounter += Time.deltaTime;
+
+                if (aimCounter >= aimTime)
+                {
+                    Shoot(direction);
+                    aimCounter = 0f;
+                }
+            }
+            else
+            {
+                aiming = false;
+                aimCounter = 0f;
+            }
+        }
+
+        Flip(direction.x);
+    }
+
+    void Shoot(Vector2 dir)
+    {
+        Instantiate(projectilePrefab, firePoint.position, Quaternion.identity)
+            .GetComponent<Rigidbody2D>()
+            .linearVelocity = dir * 10f;
+    }
+
+    // =========================
     void Flip(float dirX)
     {
         if (visual == null) return;

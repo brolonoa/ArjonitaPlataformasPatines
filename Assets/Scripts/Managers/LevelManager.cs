@@ -23,10 +23,10 @@ public class LevelManager : MonoBehaviour
     {
         playerPrefab.transform.position = currentCheckPointPos.position;
     }
-    public void OnDamageRecibed()
-    {
-        playerPrefab.transform.position = currentCheckPointPos.position;
-    }
+    //public void OnDamageRecibed()
+    //{
+    //    playerPrefab.transform.position = currentCheckPointPos.position;
+    //}
 
     
 

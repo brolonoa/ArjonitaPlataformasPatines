@@ -26,7 +26,7 @@ public class Bullet_0 : MonoBehaviour, IParryable
 
         if (_rb == null)
         {
-            Debug.LogError($"[{gameObject.name}] No tiene Rigidbody2D!");
+           
             Destroy(gameObject);
             return;
         }
