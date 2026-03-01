@@ -10,6 +10,10 @@ public class Turret : MonoBehaviour, IParryable
     [SerializeField] private float _intervalo = 1f;
     [SerializeField] private bool _dispararAlInicio = true;
 
+    [Header("Direction")]
+    [SerializeField] private bool _invertirDireccion;
+    [SerializeField] private Transform _visual;
+
     [Header("Options")]
     [SerializeField] private bool _activarAlInicio = true;
 
@@ -24,17 +28,31 @@ public class Turret : MonoBehaviour, IParryable
     public bool CanBeParried => canBeParried;
 
     [SerializeField] Animator anim;
+
+    private int direccion = 1;
+
     void Start()
     {
+        ConfigurarDireccion();
+
         if (_activarAlInicio)
         {
             IniciarDisparo();
         }
-        canBeParried = true;
 
+        canBeParried = true;
     }
 
-   
+    void ConfigurarDireccion()
+    {
+        direccion = _invertirDireccion ? -1 : 1;
+
+        if (_visual != null)
+        {
+            _visual.localScale = new Vector3(direccion, 1, 1);
+        }
+    }
+
     public void IniciarDisparo()
     {
         if (_estaDisparando) return;
@@ -55,17 +73,25 @@ public class Turret : MonoBehaviour, IParryable
         anim.SetTrigger("shoot");
         projectileIndex++;
 
-        if(projectileIndex == parryProjectileIndex)
+        GameObject prefabToSpawn;
+
+        if (projectileIndex == parryProjectileIndex)
         {
             projectileIndex = 0;
-            Instantiate(parryProjectil, _puntoDisparo.position, _puntoDisparo.rotation);
-           
+            prefabToSpawn = parryProjectil;
         }
         else
         {
-            Instantiate(_proyectil, _puntoDisparo.position, _puntoDisparo.rotation);
+            prefabToSpawn = _proyectil;
         }
-            
+
+        GameObject bullet = Instantiate(prefabToSpawn, _puntoDisparo.position, Quaternion.identity);
+
+        Bullet_0 bulletScript = bullet.GetComponent<Bullet_0>();
+        if (bulletScript != null)
+        {
+            bulletScript.SetDirection(Vector2.right * direccion);
+        }
     }
 
     private void OnDestroy()
@@ -80,15 +106,19 @@ public class Turret : MonoBehaviour, IParryable
             StartCoroutine(StunedTime());
         }
     }
+
     IEnumerator StunedTime()
     {
         anim.SetTrigger("stuned");
         DetenerDisparo();
         isStuned = true;
         canBeParried = false;
+
         yield return new WaitForSeconds(stunedTime);
+
         anim.SetTrigger("recoberStun");
         yield return new WaitForSeconds(1.1f);
+
         isStuned = false;
         canBeParried = true;
         IniciarDisparo();

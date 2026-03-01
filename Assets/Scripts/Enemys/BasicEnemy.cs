@@ -1,6 +1,7 @@
-﻿using UnityEngine;
+﻿using System.Collections;
+using UnityEngine;
 
-public class BasicEnemy : MonoBehaviour
+public class BasicEnemy : MonoBehaviour, IParryable
 {
     [Header("Patrol")]
     [SerializeField] private Transform[] patrolPoints;
@@ -17,10 +18,15 @@ public class BasicEnemy : MonoBehaviour
     [SerializeField] private float aimTime = 1f;
     [SerializeField] private GameObject projectilePrefab;
     [SerializeField] private Transform firePoint;
+    [SerializeField] private float shootCooldown = 1.5f;
+    private float shootCooldownCounter = 0f;
 
     [Header("Visual")]
     [SerializeField] private Transform visual;
     [SerializeField] private LineRenderer lineRenderer;
+
+    [SerializeField] float stunTime;
+    [SerializeField] Animator anim;
 
     private int currentIndex = 0;
     private float waitCounter;
@@ -30,8 +36,14 @@ public class BasicEnemy : MonoBehaviour
     private float aimCounter;
     private bool aiming;
 
+    [SerializeField] private bool canBeParried;
+    public bool CanBeParried => canBeParried;
+
     void Update()
     {
+        if (shootCooldownCounter > 0)
+            shootCooldownCounter -= Time.deltaTime;
+
         CheckForPlayer();
 
         if (player != null)
@@ -106,47 +118,70 @@ public class BasicEnemy : MonoBehaviour
     // =========================
     void HandleAttack()
     {
+        if (shootCooldownCounter > 0f)
+        {
+            lineRenderer.enabled = false;
+            return;
+        }
+
         Vector2 direction = (player.position - firePoint.position).normalized;
 
-        RaycastHit2D hit = Physics2D.Raycast(
+        // 🔥 Raycast SIEMPRE apunta al jugador (sin obstacleLayer)
+        RaycastHit2D playerHit = Physics2D.Raycast(
             firePoint.position,
             direction,
             visionRange,
-            playerLayer | obstacleLayer
+            playerLayer
         );
 
-        if (hit.collider != null)
-        {
+        // 👁 Raycast SOLO visual (sí detecta obstáculos)
+        RaycastHit2D visualHit = Physics2D.Raycast(
+            firePoint.position,
+            direction,
+            visionRange,
+            obstacleLayer
+        );
+
+        // --------- LINE RENDERER VISUAL ----------
+        if (aiming)
             lineRenderer.enabled = true;
-            lineRenderer.SetPosition(0, firePoint.position);
-            lineRenderer.SetPosition(1, hit.point);
+        else
+            lineRenderer.enabled = false;
+        lineRenderer.SetPosition(0, firePoint.position);
 
-            if (hit.collider.CompareTag("Player"))
-            {
-                aiming = true;
-                aimCounter += Time.deltaTime;
+        if (visualHit.collider != null)
+            lineRenderer.SetPosition(1, visualHit.point);
+        else
+            lineRenderer.SetPosition(1, firePoint.position + (Vector3)direction * visionRange);
 
-                if (aimCounter >= aimTime)
-                {
-                    Shoot(direction);
-                    aimCounter = 0f;
-                }
-            }
-            else
+        // --------- LÓGICA REAL DE DISPARO ----------
+        if (playerHit.collider != null)
+        {
+            aiming = true;
+            aimCounter += Time.deltaTime;
+
+            if (aimCounter >= aimTime)
             {
-                aiming = false;
+                Shoot(direction);
+
                 aimCounter = 0f;
+                shootCooldownCounter = shootCooldown;
+                aiming = false;
+                lineRenderer.enabled = false; // 🔥 ahora sí se apagará
             }
         }
-
+        else
+        {
+            aiming = false;
+            aimCounter = 0f;
+        }
         Flip(direction.x);
     }
 
     void Shoot(Vector2 dir)
     {
-        Instantiate(projectilePrefab, firePoint.position, Quaternion.identity)
-            .GetComponent<Rigidbody2D>()
-            .linearVelocity = dir * 10f;
+        GameObject proj = Instantiate(projectilePrefab, firePoint.position, Quaternion.identity);
+        proj.GetComponent<EnemyProjectile>().Init(dir);
     }
 
     // =========================
@@ -158,6 +193,21 @@ public class BasicEnemy : MonoBehaviour
             visual.localScale = new Vector3(1, 1, 1);
         else if (dirX < 0)
             visual.localScale = new Vector3(-1, 1, 1);
+    }
+    public void OnParry()
+    {
+        if (canBeParried)
+        {
+            Destroy(gameObject);
+        }
+    }
+    IEnumerator StunTime()
+    {
+        anim.SetTrigger("stuned");
+        canBeParried = false;
+        yield return new WaitForSeconds(stunTime);
+        canBeParried = true;
+        anim.SetTrigger("recoberStun");
     }
 
     void OnDrawGizmosSelected()
