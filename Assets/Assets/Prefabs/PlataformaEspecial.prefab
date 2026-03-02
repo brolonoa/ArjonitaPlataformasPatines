@@ -99,7 +99,7 @@ MonoBehaviour:
   - {fileID: 0}
   speed: 2
   reachDistance: 0.1
-  canPatrol: 1
+  canPatrol: 0
 --- !u!114 &5930406240696270196
 MonoBehaviour:
   m_ObjectHideFlags: 0
