@@ -30,45 +30,44 @@ public class PlatformBehaviour : MonoBehaviour
         rb = GetComponent<Rigidbody2D>();
     }
 
-  
+
 
     #region Collision Detection
 
-    //private void OnCollisionEnter2D(Collision2D collision)
-    //{
-    //    if (collision.gameObject.CompareTag("Player"))
-    //    {
-            
-    //        playerTransform = collision.transform;
-    //        playerOnPlatform = true;
+    private void OnCollisionEnter2D(Collision2D collision)
+    {
+        if (collision.gameObject.CompareTag("Player")&& canPlayerMoveAlong)
+        {
+
+            playerTransform = collision.transform;
+            playerOnPlatform = true;
+
+
+            collision.transform.SetParent(transform);
+
+            if (isFragile)
+            {
+                StartDisappearance();
+            }
+        }
+    }
+
+    private void OnCollisionExit2D(Collision2D collision)
+    {
+        if (collision.gameObject.CompareTag("Player") &&canPlayerMoveAlong) 
+        {
+            playerOnPlatform = false;
+            playerTransform = null;
+
+           
+            if (collision.transform.parent == transform)
+            {
+                collision.transform.SetParent(null);
+            }
 
           
-    //        collision.transform.SetParent(transform);
-
-    //        if (isFragile)
-    //        {
-    //            StartDisappearance();
-    //        }
-    //    }
-    //}
-
-    //private void OnCollisionExit2D(Collision2D collision)
-    //{
-    //    if (collision.gameObject.CompareTag("Player"))
-    //    {
-    //        playerOnPlatform = false;
-    //        playerTransform = null;
-
-    //         Remove parenting
-    //        if (collision.transform.parent == transform)
-    //        {
-    //            collision.transform.SetParent(null);
-    //        }
-
-    //         Option 2: For hybrid method
-    //         passengers.Remove(collision.transform);
-    //    }
-    //}
+        }
+    }
 
     private void OnTriggerEnter2D(Collider2D other)
     {
