@@ -6,23 +6,28 @@ using UnityEngine.UI;
 public class UIManager : MonoBehaviour
 {
     [SerializeField] private List<Image> healthImages;
-    [SerializeField] TextMeshProUGUI coinText;
+    [SerializeField] private TextMeshProUGUI coinText;
+
+    private int currentCoins; 
+
     private void OnEnable()
     {
         PlayerHealth.OnHealthChanged += UpdateHp;
-        CoinBehaviour.OnCoinChange += UpdateCoins;
+        CoinBehaviour.OnCoinCollected += AddCoin;
     }
 
     private void OnDisable()
     {
         PlayerHealth.OnHealthChanged -= UpdateHp;
-        CoinBehaviour.OnCoinChange -= UpdateCoins;
+        CoinBehaviour.OnCoinCollected -= AddCoin;
     }
 
-    private void UpdateCoins(int currentCoins)
+    private void AddCoin()
     {
-     coinText.text = currentCoins.ToString();   
+        currentCoins++;
+        coinText.text = currentCoins.ToString();
     }
+
     private void UpdateHp(int current, int max)
     {
         for (int i = 0; i < healthImages.Count; i++)

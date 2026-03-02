@@ -12,26 +12,23 @@ public class PlayerController : MonoBehaviour
 
     [SerializeField] Transform visual;
 
-    // NUEVO: Componentes para el deslizamiento
+  
     private CapsuleCollider2D playerCollider;
     private Vector2 originalColliderSize;
     private Vector2 originalColliderOffset;
-
-    // Timers
     private float jumpBufferCounter;
     private float coyoteCounter;
 
-    // Slope sticking
+
     private bool isOnSlope;
     private Vector2 slopeNormal;
     private Vector2 slopeDirection;
 
-    // Control de salto
     private bool isJumping;
     private float jumpStickDisableTime = 0.15f;
     private float jumpEndTime;
 
-    // NUEVO: Control de deslizamiento
+    
     private bool isSliding;
     private bool slideInputHeld;
     private float slideEndTime;
@@ -39,7 +36,7 @@ public class PlayerController : MonoBehaviour
     [SerializeField] private float slideDuration = 0.5f; // Duración máxima del deslizamiento
     [SerializeField] private float slideCooldown = 0.3f; // Cooldown entre deslizamientos
 
-    // Para depuración
+    
     private Vector2 debugForces;
 
     [SerializeField] public Animator playerAnim;
@@ -50,7 +47,7 @@ public class PlayerController : MonoBehaviour
         groundDetection = GetComponent<PlayerGroundDetection>();
         playerCollider = GetComponent<CapsuleCollider2D>();
 
-        // Guardar tamaño original del collider
+       
         if (playerCollider != null)
         {
             originalColliderSize = playerCollider.size;
@@ -67,7 +64,7 @@ public class PlayerController : MonoBehaviour
     {
         moveInput = Input.GetAxisRaw("Horizontal");
 
-        // Input de salto
+       
         if (Input.GetKeyDown(KeyCode.Z))
         {
             jumpBufferCounter = playerData.jumpBufferTime;
@@ -81,23 +78,23 @@ public class PlayerController : MonoBehaviour
             );
         }
 
-        // NUEVO: Input de deslizamiento
-        slideInputHeld = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
+     
+        //slideInputHeld = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
 
-        if (Input.GetKeyDown(KeyCode.LeftShift) || Input.GetKeyDown(KeyCode.RightShift))
-        {
-            TryStartSlide();
-        }
+        //if (Input.GetKeyDown(KeyCode.LeftShift) || Input.GetKeyDown(KeyCode.RightShift))
+        //{
+        //    TryStartSlide();
+        //}
 
-        if (Input.GetKeyUp(KeyCode.LeftShift) || Input.GetKeyUp(KeyCode.RightShift))
-        {
-            if (isSliding)
-            {
-                EndSlide();
-            }
-        }
+        //if (Input.GetKeyUp(KeyCode.LeftShift) || Input.GetKeyUp(KeyCode.RightShift))
+        //{
+        //    if (isSliding)
+        //    {
+        //        EndSlide();
+        //    }
+        //}
 
-        // Actualizar timers
+
         jumpBufferCounter -= Time.deltaTime;
 
         if (slideCooldownTime > 0)
@@ -155,15 +152,15 @@ public class PlayerController : MonoBehaviour
     {
         float targetSpeed = moveInput * playerData.maxSpeed;
 
-        // NUEVO: Aumentar velocidad si está deslizando
+        
         if (isSliding)
         {
-            targetSpeed *= playerData.slideSpeedMultiplier; // Necesitarás añadir este campo a PlayerData
+            targetSpeed *= playerData.slideSpeedMultiplier; 
         }
 
         float speedDifference = targetSpeed - rb.linearVelocity.x;
 
-        // NUEVO: Mayor aceleración en pendientes durante deslizamiento
+        
         float slopeBonus = (isOnSlope && isSliding) ? playerData.slideSlopeBoost : 1f;
 
         float currentAccel = groundDetection.IsGrounded
@@ -187,7 +184,7 @@ public class PlayerController : MonoBehaviour
 
     private void HandleJump()
     {
-        // NUEVO: No saltar si está deslizando
+        
         if (jumpBufferCounter > 0 && coyoteCounter > 0 && !isSliding)
         {
             PerformJump();
@@ -205,10 +202,10 @@ public class PlayerController : MonoBehaviour
         rb.AddForce(Vector2.up * playerData.jumpForce, ForceMode2D.Impulse);
     }
 
-    // NUEVO: Métodos para deslizamiento
+    
     private void TryStartSlide()
     {
-        // Solo puede deslizar si está en el suelo y no está ya deslizando
+        
         if (groundDetection.IsGrounded && !isSliding && slideCooldownTime <= 0)
         {
             StartSlide();
@@ -220,7 +217,7 @@ public class PlayerController : MonoBehaviour
         isSliding = true;
         slideEndTime = Time.time + slideDuration;
 
-        // Reducir collider a la mitad hacia abajo
+       
         if (playerCollider != null)
         {
             playerCollider.size = new Vector2(
@@ -234,7 +231,7 @@ public class PlayerController : MonoBehaviour
             );
         }
 
-        // Efecto visual (opcional)
+       
         if (playerAnim != null)
         {
             playerAnim.SetBool("isSliding", true);
@@ -246,46 +243,46 @@ public class PlayerController : MonoBehaviour
         isSliding = false;
         slideCooldownTime = slideCooldown;
 
-        // Restaurar collider original
+       
         if (playerCollider != null)
         {
             playerCollider.size = originalColliderSize;
             playerCollider.offset = originalColliderOffset;
         }
 
-        // Restaurar animación
+        
         if (playerAnim != null)
         {
             playerAnim.SetBool("isSliding", false);
         }
     }
 
-    private void OnDrawGizmos()
-    {
-        if (!Application.isPlaying) return;
+    //private void OnDrawGizmos()
+    //{
+    //    if (!Application.isPlaying) return;
 
-        if (isOnSlope)
-        {
-            Gizmos.color = Color.green;
-            Gizmos.DrawRay(transform.position, slopeNormal);
-            Gizmos.color = Color.red;
-            Gizmos.DrawRay(transform.position, slopeDirection);
-        }
+    //    if (isOnSlope)
+    //    {
+    //        Gizmos.color = Color.green;
+    //        Gizmos.DrawRay(transform.position, slopeNormal);
+    //        Gizmos.color = Color.red;
+    //        Gizmos.DrawRay(transform.position, slopeDirection);
+    //    }
 
-        if (isJumping)
-        {
-            Gizmos.color = Color.cyan;
-            Gizmos.DrawWireSphere(transform.position, 0.4f);
-        }
+    //    if (isJumping)
+    //    {
+    //        Gizmos.color = Color.cyan;
+    //        Gizmos.DrawWireSphere(transform.position, 0.4f);
+    //    }
 
-        // NUEVO: Visualizar estado de deslizamiento
-        if (isSliding)
-        {
-            Gizmos.color = Color.magenta;
-            Gizmos.DrawWireCube(transform.position, playerCollider != null ? playerCollider.size : Vector2.one);
-        }
+        
+    //    if (isSliding)
+    //    {
+    //        Gizmos.color = Color.magenta;
+    //        Gizmos.DrawWireCube(transform.position, playerCollider != null ? playerCollider.size : Vector2.one);
+    //    }
 
-        Gizmos.color = Color.yellow;
-        Gizmos.DrawRay(transform.position, debugForces * 0.05f);
-    }
+    //    Gizmos.color = Color.yellow;
+    //    Gizmos.DrawRay(transform.position, debugForces * 0.05f);
+    //}
 }

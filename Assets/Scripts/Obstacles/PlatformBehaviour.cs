@@ -8,14 +8,14 @@ public class PlatformBehaviour : MonoBehaviour
     [SerializeField] private bool isFragile = false;
     [SerializeField] private float disappearanceTime = 1f;
     [SerializeField] private float respawnTime = 3f;
-    
+
 
     [Header("Components")]
     private SpriteRenderer spriteRenderer;
     [SerializeField] Collider2D platformCollider;
     private Rigidbody2D rb;
 
-    
+
     private bool platformActive = true;
     private bool playerOnPlatform = false;
     private Transform playerTransform;
@@ -25,18 +25,15 @@ public class PlatformBehaviour : MonoBehaviour
 
     void Start()
     {
-        spriteRenderer =GetComponentInChildren<SpriteRenderer>();
+        spriteRenderer = GetComponentInChildren<SpriteRenderer>();
         platformCollider = GetComponent<Collider2D>();
         rb = GetComponent<Rigidbody2D>();
     }
 
 
-
-    #region Collision Detection
-
     private void OnCollisionEnter2D(Collision2D collision)
     {
-        if (collision.gameObject.CompareTag("Player")&& canPlayerMoveAlong)
+        if (collision.gameObject.CompareTag("Player") && canPlayerMoveAlong)
         {
 
             playerTransform = collision.transform;
@@ -54,33 +51,31 @@ public class PlatformBehaviour : MonoBehaviour
 
     private void OnCollisionExit2D(Collision2D collision)
     {
-        if (collision.gameObject.CompareTag("Player") &&canPlayerMoveAlong) 
+        if (collision.gameObject.CompareTag("Player") && canPlayerMoveAlong)
         {
             playerOnPlatform = false;
             playerTransform = null;
 
-           
+
             if (collision.transform.parent == transform)
             {
                 collision.transform.SetParent(null);
             }
 
-          
+
         }
     }
 
     private void OnTriggerEnter2D(Collider2D other)
     {
-        
+
         if (other.CompareTag("Player") && isFragile)
         {
             StartDisappearance();
         }
     }
 
-    #endregion
 
-    #region Fragile Platform Functionality
 
     public void StartDisappearance()
     {
@@ -96,7 +91,7 @@ public class PlatformBehaviour : MonoBehaviour
         platformActive = false;
 
         yield return new WaitForSeconds(0.5f);
-        
+
         yield return StartCoroutine(BlinkBeforeDisappear());
 
         DeactivatePlatform();
@@ -124,14 +119,13 @@ public class PlatformBehaviour : MonoBehaviour
 
     private void DeactivatePlatform()
     {
-        // Disable visual and physics components
+
         if (spriteRenderer != null)
             spriteRenderer.enabled = false;
 
         if (platformCollider != null)
             platformCollider.enabled = false;
 
-        // If player was on platform, remove parenting
         if (playerOnPlatform && playerTransform != null)
         {
             if (playerTransform.parent == transform)
@@ -144,7 +138,7 @@ public class PlatformBehaviour : MonoBehaviour
 
     private void ActivatePlatform()
     {
-        // Reactivate components
+
         if (spriteRenderer != null)
             spriteRenderer.enabled = true;
 
@@ -155,7 +149,5 @@ public class PlatformBehaviour : MonoBehaviour
         platformActive = true;
     }
 
-    #endregion
+}   
 
-   
-}

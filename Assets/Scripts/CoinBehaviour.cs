@@ -3,14 +3,13 @@ using UnityEngine;
 
 public class CoinBehaviour : MonoBehaviour, IEInteractable
 {
-    private int currentCoins;
-    public static event Action<int> OnCoinChange;
+    public static event Action OnCoinCollected;
+
     public void OnInteract()
     {
-        currentCoins++;
-        OnCoinChange?.Invoke(currentCoins);
+        OnCoinCollected?.Invoke();
         Destroy(gameObject);
     }
 
-    
+
 }

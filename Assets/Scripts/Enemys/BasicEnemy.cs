@@ -51,10 +51,6 @@ public class BasicEnemy : MonoBehaviour, IParryable
         else
             Patrol();
     }
-
-    // =========================
-    // PATROL (SOLO EJE X)
-    // =========================
     void Patrol()
     {
         if (patrolPoints.Length == 0) return;
@@ -76,7 +72,7 @@ public class BasicEnemy : MonoBehaviour, IParryable
 
         Vector3 targetPos = new Vector3(
             targetPoint.position.x,
-            transform.position.y, // 🔒 bloqueamos Y
+            transform.position.y, 
             transform.position.z
         );
 
@@ -96,9 +92,7 @@ public class BasicEnemy : MonoBehaviour, IParryable
         }
     }
 
-    // =========================
-    // DETECCIÓN
-    // =========================
+ 
     void CheckForPlayer()
     {
         Collider2D hit = Physics2D.OverlapCircle(transform.position, visionRange, playerLayer);
@@ -113,9 +107,7 @@ public class BasicEnemy : MonoBehaviour, IParryable
         }
     }
 
-    // =========================
-    // APUNTAR + DISPARAR
-    // =========================
+ 
     void HandleAttack()
     {
         if (shootCooldownCounter > 0f)
@@ -126,7 +118,7 @@ public class BasicEnemy : MonoBehaviour, IParryable
 
         Vector2 direction = (player.position - firePoint.position).normalized;
 
-        // 🔥 Raycast SIEMPRE apunta al jugador (sin obstacleLayer)
+      
         RaycastHit2D playerHit = Physics2D.Raycast(
             firePoint.position,
             direction,
@@ -134,7 +126,7 @@ public class BasicEnemy : MonoBehaviour, IParryable
             playerLayer
         );
 
-        // 👁 Raycast SOLO visual (sí detecta obstáculos)
+       
         RaycastHit2D visualHit = Physics2D.Raycast(
             firePoint.position,
             direction,
@@ -142,7 +134,7 @@ public class BasicEnemy : MonoBehaviour, IParryable
             obstacleLayer
         );
 
-        // --------- LINE RENDERER VISUAL ----------
+        
         if (aiming)
             lineRenderer.enabled = true;
         else
@@ -154,7 +146,7 @@ public class BasicEnemy : MonoBehaviour, IParryable
         else
             lineRenderer.SetPosition(1, firePoint.position + (Vector3)direction * visionRange);
 
-        // --------- LÓGICA REAL DE DISPARO ----------
+        
         if (playerHit.collider != null)
         {
             aiming = true;
@@ -167,7 +159,7 @@ public class BasicEnemy : MonoBehaviour, IParryable
                 aimCounter = 0f;
                 shootCooldownCounter = shootCooldown;
                 aiming = false;
-                lineRenderer.enabled = false; // 🔥 ahora sí se apagará
+                lineRenderer.enabled = false; 
             }
         }
         else
@@ -184,7 +176,7 @@ public class BasicEnemy : MonoBehaviour, IParryable
         proj.GetComponent<EnemyProjectile>().Init(dir);
     }
 
-    // =========================
+    
     void Flip(float dirX)
     {
         if (visual == null) return;
@@ -198,7 +190,7 @@ public class BasicEnemy : MonoBehaviour, IParryable
     {
         if (canBeParried)
         {
-            Destroy(gameObject);
+            
         }
     }
     IEnumerator StunTime()
