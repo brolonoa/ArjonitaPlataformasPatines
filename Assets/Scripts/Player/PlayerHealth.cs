@@ -28,13 +28,13 @@ public class PlayerHealth : MonoBehaviour, IDamageble
         OnHealthChanged?.Invoke(currentHp, maxHp);
     }
 
-    public void TakeDamage()
+    public void TakeDamage(int damage)
     {
         if (isInvulnerable) return;
 
         if (!parrySystem.isParryActive)
         {
-            currentHp--;
+            currentHp -= damage;
             currentHp = Mathf.Clamp(currentHp, 0, maxHp);
 
             OnHealthChanged?.Invoke(currentHp, maxHp);
