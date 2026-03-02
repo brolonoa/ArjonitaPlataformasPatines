@@ -5,7 +5,7 @@ public class Bullet_0 : MonoBehaviour, IParryable
     [Header("Settings")]
     [SerializeField] private float _velocidad = 10f;
     [SerializeField] private float _tiempoDeVida = 10f;
-    [SerializeField] float damage;
+    [SerializeField] int damage =1;
 
     private Rigidbody2D _rb;
     private Vector2 _direction = Vector2.right;
@@ -47,7 +47,7 @@ public class Bullet_0 : MonoBehaviour, IParryable
 
         if (idamagble != null)
         {
-            idamagble.TakeDamage();
+            idamagble.TakeDamage(damage);
         }
 
         Destroy(gameObject);

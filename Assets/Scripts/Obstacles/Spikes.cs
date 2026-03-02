@@ -3,6 +3,7 @@ using UnityEngine;
 public class Spikes : MonoBehaviour, IParryable
 {
     [SerializeField] bool canParry;
+    [SerializeField] int damage;
 
     [SerializeField] SpriteRenderer spriteRenderer;
 
@@ -22,7 +23,7 @@ public class Spikes : MonoBehaviour, IParryable
         IDamageble idamagble = other.gameObject.GetComponent<IDamageble>();
         if (idamagble != null)
         {
-            idamagble.TakeDamage();
+            idamagble.TakeDamage(damage);
         }
     }
       

@@ -52,9 +52,11 @@ MonoBehaviour:
   _puntoDisparo: {fileID: 2357146839639015521}
   _intervalo: 3
   _dispararAlInicio: 1
+  _invertirDireccion: 0
+  _visual: {fileID: 7771068113385018501}
   _activarAlInicio: 1
   parryProjectileIndex: 2
-  stunedTime: 4
+  stunedTime: 3
   canBeParried: 0
   anim: {fileID: 3180056258236462252}
 --- !u!61 &6654816624125958569

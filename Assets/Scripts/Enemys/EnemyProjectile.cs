@@ -5,6 +5,7 @@ public class EnemyProjectile : MonoBehaviour, IParryable
 
     [SerializeField] private float speed = 10f;
     [SerializeField] private float lifeTime = 3f;
+    [SerializeField] int damage =1;
 
     private Vector2 direction;
     [SerializeField] private bool canBeParried;
@@ -21,7 +22,7 @@ public class EnemyProjectile : MonoBehaviour, IParryable
         IDamageble idamagble = other.gameObject.GetComponent<IDamageble>();
         if (idamagble != null)
         {
-            idamagble.TakeDamage();
+            idamagble.TakeDamage(damage);
             Destroy(gameObject);
         }
         else
